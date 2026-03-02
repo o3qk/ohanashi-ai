@@ -2,15 +2,32 @@
 
 import React, { useMemo, useRef, useState } from "react";
 
-import { CharacterSelector, type CharacterId } from "@/components/CharacterSelector";
-import { CharacterAvatar, type ConversationStatus } from "@/components/CharacterAvatar";
+import {
+  CharacterSelector,
+  type CharacterId
+} from "@/components/CharacterSelector";
+import {
+  CharacterAvatar,
+  type ConversationStatus
+} from "@/components/CharacterAvatar";
 import { ConversationPanel } from "@/components/ConversationPanel";
 import { TextInputArea } from "@/components/TextInputArea";
 import { StatusIndicator } from "@/components/StatusIndicator";
 import { ControlPanel, type ReplyMode } from "@/components/ControlPanel";
+import { ListeningVisualizer } from "@/components/ListeningVisualizer";
 import { createSpeechRecognition } from "@/utils/speechRecognition";
 import { sendChat } from "@/utils/chatClient";
 import { createVoicePlayer, type VoicePlaybackHandle } from "@/utils/voicevoxClient";
+
+// キャラクターごとに VOICEVOX の話者IDを割り当てます。
+// はなちゃん: 2（四国めたん・あまあま）
+// 近所のおねえさん: 14（冥鳴ひまり）
+// おじさま: 13（青山龍星）
+function getSpeakerId(character: CharacterId): number {
+  if (character === "neighbor") return 14;
+  if (character === "uncle") return 13;
+  return 2;
+}
 
 export default function HomePage() {
   // キャラクター選択（はなちゃん / 近所の女性 / おじさま）
@@ -111,7 +128,18 @@ export default function HomePage() {
         );
       }
 
-      const playback = await voicePlayer.speak(aiText, { speed });
+      // tts.quest に渡すテキストは、長すぎると途中で切れることがあるため、
+      // 音声用には先頭の一部だけを使います（画面のテキストはフルで表示します）。
+      const maxVoiceLength = 160;
+      const voiceText =
+        aiText.length > maxVoiceLength
+          ? aiText.slice(0, maxVoiceLength)
+          : aiText;
+
+      const playback = await voicePlayer.speak(voiceText, {
+        speed,
+        speakerId: getSpeakerId(character)
+      });
       if (!playback) {
         setStatus("idle");
         setNotice(
@@ -202,10 +230,12 @@ export default function HomePage() {
           </div>
         )}
 
-      {/* 上部: キャラクター表示 + キャラクター切り替え */}
+        {/* 上部: キャラクター表示 + キャラクター切り替え */}
       <div>
         <CharacterAvatar character={character} status={status} />
         <CharacterSelector value={character} onChange={setCharacter} />
+          {/* 録音中の波形アニメーション */}
+          <ListeningVisualizer visible={status === "listening"} />
       </div>
 
       {/* 中央: 発話内容と返答テキスト表示 */}
