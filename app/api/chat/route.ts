@@ -4,7 +4,13 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export async function POST(req: Request) {
   try {
     const { message, systemPrompt } = await req.json();
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return new Response(JSON.stringify({ reply: "APIキーが設定されていません。" }), { status: 500 });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const result = await model.generateContent([
@@ -12,8 +18,12 @@ export async function POST(req: Request) {
       { text: message }
     ]);
     
-    return Response.json({ reply: result.response.text() });
+    return new Response(JSON.stringify({ reply: result.response.text() }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
   } catch (error) {
-    return Response.json({ reply: "エラーが発生しました。" }, { status: 500 });
+    console.error(error);
+    return new Response(JSON.stringify({ reply: "おはなしの準備ができませんでした。少し待ってね。" }), { status: 500 });
   }
 }
