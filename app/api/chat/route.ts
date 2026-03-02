@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
 // キャラクターIDの型定義です。フロントと合わせておきます。
 type CharacterId = "hana" | "neighbor" | "uncle";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
 
 // キャラクターごとの話し方を system プロンプトとして定義します。
 function buildSystemPrompt(character: CharacterId): string {
@@ -38,7 +34,10 @@ function buildSystemPrompt(character: CharacterId): string {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.OPENAI_API_KEY) {
+  const apiKey =
+    process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+
+  if (!apiKey) {
     return NextResponse.json(
       {
         text:
@@ -49,6 +48,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const ai = new GoogleGenAI({ apiKey });
+
     const body = await req.json();
     const messages = body.messages as
       | { role: "user" | "assistant" | "system"; content: string }[]
@@ -65,20 +66,21 @@ export async function POST(req: NextRequest) {
 
     const systemContent = buildSystemPrompt(characterId);
 
-    const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+    // Gemini 2.5 Flash は無料枠で使えるモデルです（10 req/min, 500 req/day）
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-    const completion = await openai.chat.completions.create({
+    const response = await ai.models.generateContent({
       model,
-      messages: [
-        { role: "system", content: systemContent },
-        { role: "user", content: userMessage }
-      ],
-      temperature: 0.7,
-      max_tokens: 256
+      contents: userMessage,
+      config: {
+        systemInstruction: systemContent,
+        temperature: 0.7,
+        maxOutputTokens: 256
+      }
     });
 
     const text =
-      completion.choices[0]?.message?.content ??
+      (response as { text?: string }).text ??
       "ごめんね、うまく おへんじ が できなかったみたい…。";
 
     return NextResponse.json({ text });
@@ -93,4 +95,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

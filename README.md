@@ -7,7 +7,7 @@ Next.js(App Router) + Tailwind CSS + VOICEVOX Web API + Web Speech API で動作
 
 - Node.js (推奨: 18 以上)
 - npm または pnpm / yarn
-- OpenAI の API キー
+- **Google Gemini API キー**（無料で取得可能・[Google AI Studio](https://aistudio.google.com/apikey) で発行）
 - VOICEVOX Web API（クラウド）のエンドポイントと API キー
 
 ## セットアップ手順
@@ -23,14 +23,18 @@ npm install
 プロジェクト直下に `.env.local` ファイルを作成し、次のように設定します。
 
 ```bash
-OPENAI_API_KEY=あなたのOpenAIのAPIキー
-OPENAI_MODEL=gpt-4.1-mini
+# Google Gemini API（無料枠あり・クレジットカード不要）
+GEMINI_API_KEY=あなたのGemini APIキー
+
+# 以下は任意（未設定時はデフォルト値を使用）
+# GEMINI_MODEL=gemini-2.5-flash
 
 VOICEVOX_BASE_URL=あなたのVOICEVOX Web APIのベースURL
 VOICEVOX_API_KEY=あなたのVOICEVOX APIキー
 ```
 
-> VOICEVOX の話者 ID はデフォルトで `2` を利用します（計画どおり）。
+> **Gemini API キー**は [Google AI Studio](https://aistudio.google.com/apikey) で無料発行できます。無料枠（例: 1日500リクエスト）で十分に利用可能です。  
+> VOICEVOX の話者 ID はデフォルトで `2` を利用します。
 
 ## 開発サーバーの起動方法
 
@@ -54,7 +58,7 @@ npm run dev
 ## ファイル構成（主なもの）
 
 - `app/page.tsx` … 画面全体の状態管理とレイアウト
-- `app/api/chat/route.ts` … OpenAI を使った会話API
+- `app/api/chat/route.ts` … Google Gemini を使った会話API（無料枠対応）
 - `app/api/voice/route.ts` … VOICEVOX Web API 経由で音声を生成するAPI
 - `components/` … キャラクター表示・入力欄・ボタンなどUIコンポーネント
 - `utils/speechRecognition.ts` … Web Speech API を扱うためのラッパー

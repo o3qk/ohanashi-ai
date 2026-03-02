@@ -18,9 +18,9 @@
 
 このプロジェクトにはすでに `origin` が次のように設定されています。
 
-- `https://github.com/zero/ohanashi-ai.git`
+- `https://github.com/o3qk/ohanashi-ai.git`
 
-**GitHub のユーザー名が "zero" でない場合**は、次のコマンドで URL を書き換えてください。
+別のアカウントでプッシュする場合のみ、次のコマンドで URL を書き換えてください。
 
 ```bash
 cd /Users/zero/Desktop/Ohanashi-AI
@@ -51,8 +51,7 @@ git push -u origin main
    - **Framework Preset**: Next.js のまま
    - **Root Directory**: そのまま（変更不要）
    - **Environment Variables** で以下を追加します（本番用）:
-     - `OPENAI_API_KEY` = あなたの OpenAI API キー
-     - `OPENAI_MODEL` = `gpt-4.1-mini`（任意）
+     - `GEMINI_API_KEY` = あなたの Google Gemini API キー（[Google AI Studio](https://aistudio.google.com/apikey) で無料発行）
      - `VOICEVOX_BASE_URL` = VOICEVOX Web API のベース URL
      - `VOICEVOX_API_KEY` = VOICEVOX API キー
 4. **Deploy** をクリックしてデプロイを開始します。
@@ -74,4 +73,4 @@ git push -u origin main
 - **プッシュ時に認証エラーになる**  
   GitHub の **Settings → Developer settings → Personal access tokens** でトークンを作成し、パスワードの代わりにそのトークンを入力してください。
 - **Vercel のビルドが失敗する**  
-  **Environment Variables** に上記4つが正しく設定されているか確認し、**Redeploy** を試してください。
+  **Environment Variables** に上記3つ（`GEMINI_API_KEY`、`VOICEVOX_BASE_URL`、`VOICEVOX_API_KEY`）が正しく設定されているか確認し、**Redeploy** を試してください。

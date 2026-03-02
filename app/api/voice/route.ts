@@ -9,7 +9,9 @@ const VOICEVOX_BASE_URL = process.env.VOICEVOX_BASE_URL;
 const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY;
 
 export async function POST(req: NextRequest) {
-  if (!VOICEVOX_BASE_URL || !VOICEVOX_API_KEY) {
+  // VOICEVOX のクラウドAPIはサービスによって「APIキー必須/不要」が異なるため、
+  // ここでは BASE_URL だけ必須にし、APIキーは任意にします。
+  if (!VOICEVOX_BASE_URL) {
     return new NextResponse("VOICEVOX API is not configured", {
       status: 500
     });
@@ -26,17 +28,24 @@ export async function POST(req: NextRequest) {
       return new NextResponse("no text", { status: 400 });
     }
 
+    // APIキーがある場合だけヘッダーに付けます（空文字なら付けない）
+    const voicevoxHeaders: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    if (VOICEVOX_API_KEY && VOICEVOX_API_KEY.trim().length > 0) {
+      voicevoxHeaders["x-api-key"] = VOICEVOX_API_KEY;
+    }
+
     // 1. audio_query を取得
-    const queryUrl = new URL("/audio_query", VOICEVOX_BASE_URL);
+    // BASE_URL が `https://example.com/api/` のようにパスを含む場合でも壊れないように、
+    // 先頭スラッシュ無しで連結します（`/audio_query` だと `/api/` が消えてしまうため）
+    const queryUrl = new URL("audio_query", VOICEVOX_BASE_URL);
     queryUrl.searchParams.set("text", text);
     queryUrl.searchParams.set("speaker", String(speakerId));
 
     const queryRes = await fetch(queryUrl.toString(), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": VOICEVOX_API_KEY
-      }
+      headers: voicevoxHeaders
     });
 
     if (!queryRes.ok) {
@@ -51,15 +60,12 @@ export async function POST(req: NextRequest) {
     queryJson.speedScale = speed;
 
     // 2. synthesis で音声データを生成
-    const synthUrl = new URL("/synthesis", VOICEVOX_BASE_URL);
+    const synthUrl = new URL("synthesis", VOICEVOX_BASE_URL);
     synthUrl.searchParams.set("speaker", String(speakerId));
 
     const synthRes = await fetch(synthUrl.toString(), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": VOICEVOX_API_KEY
-      },
+      headers: voicevoxHeaders,
       body: JSON.stringify(queryJson)
     });
 
