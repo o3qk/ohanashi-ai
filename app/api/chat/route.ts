@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: Request) {
@@ -24,6 +23,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error(error);
-    return new Response(JSON.stringify({ reply: "おはなしの準備ができませんでした。少し待ってね。" }), { status: 500 });
+    return new Response(JSON.stringify({ reply: "ごめんね、いまお話しできないみたい。もう一度試してみて！" }), { status: 500 });
   }
 }
