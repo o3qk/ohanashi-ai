@@ -61,6 +61,11 @@ npm run dev
 - `utils/chatClient.ts` … `/api/chat` を呼び出すクライアント
 - `utils/voicevoxClient.ts` … `/api/voice` を呼び出して音声を再生するクライアント
 
+## GitHub へのプッシュと Vercel での公開
+
+このプロジェクトを GitHub のリポジトリ **ohanashi-ai** にプッシュし、Vercel で公開する手順は **[DEPLOY.md](DEPLOY.md)** にまとめています。  
+（リポジトリの作成・プッシュ・Vercel 連携・環境変数の設定・公開URLの確認まで）
+
 ## 注意点
 
 - Web Speech API はブラウザ依存です。Chrome など対応ブラウザでの利用を想定しています。
