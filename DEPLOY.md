@@ -52,8 +52,8 @@ git push -u origin main
    - **Root Directory**: そのまま（変更不要）
    - **Environment Variables** で以下を追加します（本番用）:
      - `GEMINI_API_KEY` = あなたの Google Gemini API キー（[Google AI Studio](https://aistudio.google.com/apikey) で無料発行）
-     - `VOICEVOX_BASE_URL` = VOICEVOX Web API のベース URL
-     - `VOICEVOX_API_KEY` = VOICEVOX API キー
+     - `VOICEVOX_API_KEY` = VOICEVOX（tts.quest v3 高速版）キー（任意）
+     - `TTSQUEST_SYNTHESIS_URL` = `https://api.tts.quest/v3/voicevox/synthesis`（任意・通常不要）
 4. **Deploy** をクリックしてデプロイを開始します。
 5. ビルドが完了すると、**Congratulations** 画面に **公開URL** が表示されます。
    - 例: `https://ohanashi-ai-xxxx.vercel.app`
@@ -73,4 +73,4 @@ git push -u origin main
 - **プッシュ時に認証エラーになる**  
   GitHub の **Settings → Developer settings → Personal access tokens** でトークンを作成し、パスワードの代わりにそのトークンを入力してください。
 - **Vercel のビルドが失敗する**  
-  **Environment Variables** に上記3つ（`GEMINI_API_KEY`、`VOICEVOX_BASE_URL`、`VOICEVOX_API_KEY`）が正しく設定されているか確認し、**Redeploy** を試してください。
+  **Environment Variables** に上記（`GEMINI_API_KEY` と、必要なら `VOICEVOX_API_KEY` / `TTSQUEST_SYNTHESIS_URL`）が正しく設定されているか確認し、**Redeploy** を試してください。

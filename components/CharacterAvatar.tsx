@@ -57,7 +57,13 @@ export const CharacterAvatar: React.FC<Props> = ({ character, status }) => {
   const colorClass = statusToColor(status);
 
   return (
-    <div className="flex items-center gap-4 sm:gap-6 mb-4 sm:mb-6">
+    <div className="relative flex items-center gap-4 sm:gap-6 mb-4 sm:mb-6">
+      {/* 上で動く“キラキラ”演出（視線を集めて「動いてる感」を出す） */}
+      <div className="absolute -top-3 left-0 right-0 flex justify-center pointer-events-none">
+        <div className="px-4 py-1 rounded-full bg-white/70 border border-ohanashi-yellow-200 text-ohanashi-orange-800 text-xs sm:text-sm font-bold animate-float-slow">
+          きらきら うごいてるよ
+        </div>
+      </div>
       <div
         className={`w-24 h-24 sm:w-32 sm:h-32 rounded-full flex items-center justify-center text-5xl sm:text-6xl shadow-md border-4 border-ohanashi-orange-300 ${colorClass} ${animationClass}`}
       >

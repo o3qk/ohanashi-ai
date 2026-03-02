@@ -10,7 +10,7 @@ import { StatusIndicator } from "@/components/StatusIndicator";
 import { ControlPanel, type ReplyMode } from "@/components/ControlPanel";
 import { createSpeechRecognition } from "@/utils/speechRecognition";
 import { sendChat } from "@/utils/chatClient";
-import { speakWithVoiceVox } from "@/utils/voicevoxClient";
+import { createVoicePlayer, type VoicePlaybackHandle } from "@/utils/voicevoxClient";
 
 export default function HomePage() {
   // キャラクター選択（はなちゃん / 近所の女性 / おじさま）
@@ -29,9 +29,14 @@ export default function HomePage() {
   const [isBusy, setIsBusy] = useState(false);
   // 音声認識対応状況
   const [isRecognizing, setIsRecognizing] = useState(false);
+  // エラーや注意メッセージ（子ども向け・大人向けを混ぜて表示してOK）
+  const [notice, setNotice] = useState<string>("");
 
-  // 再生中の Audio インスタンスを保持して、途中停止できるようにするための参照です。
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  // 再生中の音声（VOICEVOX）のハンドルを保持して、途中停止できるようにするための参照です。
+  const currentPlaybackRef = useRef<VoicePlaybackHandle | null>(null);
+
+  // 音声プレイヤーは1つにして、最初のユーザー操作で unlock しておきます。
+  const voicePlayer = useMemo(() => createVoicePlayer(), []);
 
   // SpeechRecognition インスタンスは1つにしておきたいので useMemo でラップします。
   const speechController = useMemo(
@@ -42,22 +47,28 @@ export default function HomePage() {
           setInputText(text);
           setIsRecognizing(false);
           setStatus("thinking");
+          setNotice("");
           void handleSendMessage(text);
         },
         onStart: () => {
           setIsRecognizing(true);
           setStatus("listening");
+          setNotice("");
         },
         onEnd: () => {
           setIsRecognizing(false);
-          // onResult 側でステータスを更新するので、ここでは待機に戻すだけにします。
-          if (status === "listening") {
-            setStatus("idle");
-          }
+          // useMemo([]) の中では state が古くなることがあるため、
+          // 直前の値を関数で見て安全に戻します。
+          setStatus((prev) => (prev === "listening" ? "idle" : prev));
         },
-        onError: () => {
+        onError: (event) => {
           setIsRecognizing(false);
           setStatus("idle");
+          // ブラウザのエラー内容はまちまちなので、まずは「よくある原因」を表示します。
+          console.error("speech recognition error", event);
+          setNotice(
+            "マイクが つかえないみたい…。ブラウザの設定で マイクを許可して、もういちど『話す』をおしてね。（iPhoneのSafariは非対応のことがあります）"
+          );
         }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,6 +88,7 @@ export default function HomePage() {
     setIsBusy(true);
     setStatus("thinking");
     setResponseText("");
+    setNotice("");
 
     const { text: aiText } = await sendChat({
       message: text,
@@ -92,15 +104,24 @@ export default function HomePage() {
     // 音声再生が必要な場合は VOICEVOX を呼び出します。
     if (replyMode === "voice" || replyMode === "both") {
       setStatus("speaking");
-      const audio = await speakWithVoiceVox(aiText, { speed });
-      if (audio) {
-        // 途中停止できるように参照を保存しておきます。
-        currentAudioRef.current = audio;
-        audio.onended = () => {
-          currentAudioRef.current = null;
-          setStatus("idle");
-        };
+      // 音声が鳴らない端末があるため、未解除なら案内を出します。
+      if (!voicePlayer.isUnlocked()) {
+        setNotice(
+          "音が出ないときは『話す』か『そうしん』をもういちど押して、音声の準備をしてね。"
+        );
+      }
+
+      const playback = await voicePlayer.speak(aiText, { speed });
+      if (!playback) {
+        setStatus("idle");
+        setNotice(
+          "声の へんかん が うまくいかなかったみたい…。VOICEVOX の設定（URL/キー）を たしかめてね。"
+        );
       } else {
+        currentPlaybackRef.current = playback;
+        // 再生が終わるまで待ってから待機に戻します。
+        await playback.finished;
+        currentPlaybackRef.current = null;
         setStatus("idle");
       }
     } else {
@@ -111,11 +132,14 @@ export default function HomePage() {
   };
 
   // 「話す」ボタンを押したときの処理です。
-  const handleStartSpeech = () => {
+  const handleStartSpeech = async () => {
+    // ここはユーザー操作直後なので、音声再生の解除（unlock）に最適です。
+    await voicePlayer.unlock();
+
     if (!speechController.isSupported) {
       // 非対応ブラウザでは、テキスト入力を案内するだけにします。
-      alert(
-        "このブラウザでは マイクでの 音声認識が つかえないみたいです。\nしたの 文字いれ を つかって おはなし してみてね。"
+      setNotice(
+        "このブラウザでは マイクでの 音声認識が つかえないみたい…。したの『文字で はなす』で おはなし してみてね。（PCのChromeだと動きやすいよ）"
       );
       return;
     }
@@ -132,10 +156,11 @@ export default function HomePage() {
       // stop中のエラーは無視します。
     }
 
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.currentTime = 0;
-      currentAudioRef.current = null;
+    // VOICEVOX の再生停止
+    voicePlayer.stop();
+    if (currentPlaybackRef.current) {
+      currentPlaybackRef.current.stop();
+      currentPlaybackRef.current = null;
     }
 
     setIsBusy(false);
@@ -143,12 +168,40 @@ export default function HomePage() {
     setStatus("idle");
   };
 
-  const handleSubmitText = () => {
+  const handleSubmitText = async () => {
+    // テキスト送信もユーザー操作なので、音声の unlock を先に行っておきます。
+    await voicePlayer.unlock();
     void handleSendMessage();
   };
 
   return (
-    <main className="bg-white/80 rounded-3xl shadow-xl border-2 border-ohanashi-orange-100 p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="relative">
+      {/* 背景の飾り（にぎやかに見せるため） */}
+      <div className="absolute -top-6 -right-6 w-24 h-24 sm:w-36 sm:h-36 rounded-full bg-ohanashi-yellow-200 blur-2xl opacity-70" />
+      <div className="absolute -bottom-8 -left-6 w-28 h-28 sm:w-44 sm:h-44 rounded-full bg-ohanashi-orange-200 blur-2xl opacity-70" />
+
+      <main className="relative bg-white/85 backdrop-blur rounded-3xl shadow-2xl border-2 border-ohanashi-orange-100 p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm sm:text-base font-semibold text-ohanashi-orange-700">
+              お話AI
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-ohanashi-orange-900">
+              いっしょに おしゃべり しよう！
+            </div>
+          </div>
+          <div className="shrink-0">
+            <StatusIndicator status={status} />
+          </div>
+        </div>
+
+        {/* 注意メッセージ */}
+        {notice && (
+          <div className="bg-ohanashi-yellow-50 border-2 border-ohanashi-yellow-200 text-ohanashi-orange-900 rounded-2xl p-3 sm:p-4 text-sm sm:text-base font-semibold">
+            {notice}
+          </div>
+        )}
+
       {/* 上部: キャラクター表示 + キャラクター切り替え */}
       <div>
         <CharacterAvatar character={character} status={status} />
@@ -166,10 +219,6 @@ export default function HomePage() {
         disabled={isBusy}
       />
 
-      <div className="flex items-center justify-between">
-        <StatusIndicator status={status} />
-      </div>
-
       {/* 下部: 話す / とめる ボタン + モード & 速度 */}
       <ControlPanel
         status={status}
@@ -182,7 +231,8 @@ export default function HomePage() {
         isRecognizing={isRecognizing}
         isBusy={isBusy}
       />
-    </main>
+      </main>
+    </div>
   );
 }
 

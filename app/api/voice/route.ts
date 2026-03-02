@@ -1,90 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// VOICEVOX Web API（クラウド）のベースURLとAPIキーは、環境変数から読み込みます。
-// 例:
-// VOICEVOX_BASE_URL=https://example.voicevox.api
-// VOICEVOX_API_KEY=xxxx
+// tts.quest v3 VOICEVOX API を利用して、mp3StreamingUrl を返すためのAPIです。
+//
+// ポイント:
+// - `mp3StreamingUrl` は合成完了を待たずに再生開始できるため、待ち時間を短くできます。
+// - SU-SHIKI の高速版キーなどは、`.env` の `VOICEVOX_API_KEY` から読み込み、tts.quest へ `key` パラメータとして渡します。
+//
+// 参考URL（ユーザー指定）:
+// - https://api.tts.quest/v3/voicevox/synthesis
 
-const VOICEVOX_BASE_URL = process.env.VOICEVOX_BASE_URL;
+const TTSQUEST_SYNTHESIS_URL =
+  process.env.TTSQUEST_SYNTHESIS_URL ||
+  "https://api.tts.quest/v3/voicevox/synthesis";
+
+// SU-SHIKI の高速版キーなど（tts.quest へ key=... として渡します）
 const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY;
 
-export async function POST(req: NextRequest) {
-  // VOICEVOX のクラウドAPIはサービスによって「APIキー必須/不要」が異なるため、
-  // ここでは BASE_URL だけ必須にし、APIキーは任意にします。
-  if (!VOICEVOX_BASE_URL) {
-    return new NextResponse("VOICEVOX API is not configured", {
-      status: 500
-    });
-  }
+type TtsQuestSynthesisResponse = {
+  success: boolean;
+  isApiKeyValid?: boolean;
+  speakerName?: string;
+  audioStatusUrl?: string;
+  wavDownloadUrl?: string;
+  mp3DownloadUrl?: string;
+  mp3StreamingUrl?: string;
+};
 
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const text = (body.text as string | undefined) ?? "";
     const speed = (body.speed as number | undefined) ?? 1.0;
-    // プランでは ID:2 を使う指定があるので、デフォルトは 2 にします。
+    // 指定どおり: 話者IDは 2（四国めたん・あまあま）
     const speakerId = (body.speakerId as number | undefined) ?? 2;
 
     if (!text.trim()) {
       return new NextResponse("no text", { status: 400 });
     }
 
-    // APIキーがある場合だけヘッダーに付けます（空文字なら付けない）
-    const voicevoxHeaders: Record<string, string> = {
-      "Content-Type": "application/json"
-    };
+    // tts.quest の synthesis はクエリパラメータで指定します。
+    // 例) /v3/voicevox/synthesis?text=...&speaker=2&speed=1.0&key=...
+    const url = new URL(TTSQUEST_SYNTHESIS_URL);
+    url.searchParams.set("text", text);
+    url.searchParams.set("speaker", String(speakerId));
+    url.searchParams.set("speed", String(speed));
+
+    // SU-SHIKI 高速版キー（任意）
     if (VOICEVOX_API_KEY && VOICEVOX_API_KEY.trim().length > 0) {
-      voicevoxHeaders["x-api-key"] = VOICEVOX_API_KEY;
+      url.searchParams.set("key", VOICEVOX_API_KEY);
     }
 
-    // 1. audio_query を取得
-    // BASE_URL が `https://example.com/api/` のようにパスを含む場合でも壊れないように、
-    // 先頭スラッシュ無しで連結します（`/audio_query` だと `/api/` が消えてしまうため）
-    const queryUrl = new URL("audio_query", VOICEVOX_BASE_URL);
-    queryUrl.searchParams.set("text", text);
-    queryUrl.searchParams.set("speaker", String(speakerId));
-
-    const queryRes = await fetch(queryUrl.toString(), {
-      method: "POST",
-      headers: voicevoxHeaders
+    const res = await fetch(url.toString(), {
+      method: "GET"
     });
 
-    if (!queryRes.ok) {
-      console.error("VOICEVOX audio_query error", await queryRes.text());
-      return new NextResponse("voicevox audio_query failed", {
-        status: 500
-      });
+    if (!res.ok) {
+      console.error("tts.quest synthesis error", await res.text());
+      return new NextResponse("tts.quest synthesis failed", { status: 500 });
     }
 
-    const queryJson = await queryRes.json();
-    // 速度（speedScale）をリクエストに反映します。
-    queryJson.speedScale = speed;
+    const data = (await res.json()) as TtsQuestSynthesisResponse;
 
-    // 2. synthesis で音声データを生成
-    const synthUrl = new URL("synthesis", VOICEVOX_BASE_URL);
-    synthUrl.searchParams.set("speaker", String(speakerId));
-
-    const synthRes = await fetch(synthUrl.toString(), {
-      method: "POST",
-      headers: voicevoxHeaders,
-      body: JSON.stringify(queryJson)
-    });
-
-    if (!synthRes.ok) {
-      console.error("VOICEVOX synthesis error", await synthRes.text());
-      return new NextResponse("voicevox synthesis failed", {
-        status: 500
-      });
+    if (!data.success || !data.mp3StreamingUrl) {
+      console.error("tts.quest synthesis response", data);
+      return new NextResponse("tts.quest response invalid", { status: 500 });
     }
 
-    const audioBuffer = Buffer.from(await synthRes.arrayBuffer());
-
-    return new NextResponse(audioBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/wav",
-        "Content-Length": String(audioBuffer.length)
-      }
-    });
+    // クライアントはこの mp3StreamingUrl を <audio> で再生します。
+    return NextResponse.json(
+      {
+        mp3StreamingUrl: data.mp3StreamingUrl,
+        mp3DownloadUrl: data.mp3DownloadUrl,
+        audioStatusUrl: data.audioStatusUrl,
+        speakerName: data.speakerName,
+        isApiKeyValid: data.isApiKeyValid ?? null
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("/api/voice error", error);
     return new NextResponse("voicevox request failed", { status: 500 });

@@ -8,7 +8,7 @@ Next.js(App Router) + Tailwind CSS + VOICEVOX Web API + Web Speech API で動作
 - Node.js (推奨: 18 以上)
 - npm または pnpm / yarn
 - **Google Gemini API キー**（無料で取得可能・[Google AI Studio](https://aistudio.google.com/apikey) で発行）
-- VOICEVOX Web API（クラウド）のエンドポイントと API キー
+- VOICEVOX（tts.quest v3）の API キー（高速版を使う場合）
 
 ## セットアップ手順
 
@@ -29,8 +29,12 @@ GEMINI_API_KEY=あなたのGemini APIキー
 # 以下は任意（未設定時はデフォルト値を使用）
 # GEMINI_MODEL=gemini-2.5-flash
 
-VOICEVOX_BASE_URL=あなたのVOICEVOX Web APIのベースURL
-VOICEVOX_API_KEY=あなたのVOICEVOX APIキー
+# VOICEVOX（tts.quest v3）: mp3StreamingUrl でストリーミング再生します
+# 高速版（SU-SHIKIキー等）を使う場合は VOICEVOX_API_KEY に入れてください（任意）
+VOICEVOX_API_KEY=あなたのVOICEVOX_API_KEY（任意）
+
+# 任意: tts.quest のエンドポイントを変えたいときだけ
+# TTSQUEST_SYNTHESIS_URL=https://api.tts.quest/v3/voicevox/synthesis
 ```
 
 > **Gemini API キー**は [Google AI Studio](https://aistudio.google.com/apikey) で無料発行できます。無料枠（例: 1日500リクエスト）で十分に利用可能です。  
@@ -59,7 +63,7 @@ npm run dev
 
 - `app/page.tsx` … 画面全体の状態管理とレイアウト
 - `app/api/chat/route.ts` … Google Gemini を使った会話API（無料枠対応）
-- `app/api/voice/route.ts` … VOICEVOX Web API 経由で音声を生成するAPI
+- `app/api/voice/route.ts` … tts.quest v3 を呼び、`mp3StreamingUrl` で音声をストリーミング再生するためのAPI
 - `components/` … キャラクター表示・入力欄・ボタンなどUIコンポーネント
 - `utils/speechRecognition.ts` … Web Speech API を扱うためのラッパー
 - `utils/chatClient.ts` … `/api/chat` を呼び出すクライアント
