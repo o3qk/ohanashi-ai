@@ -1,38 +1,43 @@
-import { NextResponse, NextRequest } from "next/server"; // ← NextRequest を追加しました
+// app/api/voice/route.ts 【完全版】
+import { NextResponse, NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const text = body.text ?? "";
-    const speed = body.speed ?? 1.0;
-    const speakerId = body.speakerId ?? 2;
+    const { text, speed = 1.0, speakerId = 2 } = body;
 
-    const TTSQUEST_SYNTHESIS_URL = process.env.TTSQUEST_SYNTHESIS_URL || "https://api.tts.quest/v3/voicevox/synthesis";
-    const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY;
+    if (!text) return new NextResponse("No text provided", { status: 400 });
 
-    if (!text.trim()) return new NextResponse("no text", { status: 400 });
+    const TTS_URL = "https://api.tts.quest/v3/voicevox/synthesis";
+    const apiKey = process.env.VOICEVOX_API_KEY;
 
-    const url = new URL(TTSQUEST_SYNTHESIS_URL);
+    // 1. URLの組み立て
+    const url = new URL(TTS_URL);
     url.searchParams.set("text", text);
     url.searchParams.set("speaker", String(speakerId));
     url.searchParams.set("speed", String(speed));
-    if (VOICEVOX_API_KEY) url.searchParams.set("key", VOICEVOX_API_KEY);
+    if (apiKey) url.searchParams.set("key", apiKey);
 
-    const res = await fetch(url.toString());
-    if (!res.ok) return new NextResponse("tts.quest synthesis failed", { status: 500 });
+    // 2. サーバー側でデータを取得 (これが CORB 回避の鍵)
+    const response = await fetch(url.toString());
+    if (!response.ok) throw new Error("Failed to fetch from tts.quest");
 
-    const data = await res.json();
+    const data = await response.json();
 
+    // 3. ブラウザに「自前サーバーの応答」として返す
     return NextResponse.json({
-        mp3StreamingUrl: data.mp3StreamingUrl,
-        success: true
+      mp3StreamingUrl: data.mp3StreamingUrl,
+      success: true
     }, {
-        status: 200,
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-        }
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+      }
     });
-  } catch (error) {
-    return new NextResponse("voicevox request failed", { status: 500 });
+
+  } catch (error: any) {
+    console.error("Voice API Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
