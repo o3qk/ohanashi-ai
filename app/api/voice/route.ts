@@ -5,20 +5,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { text, speed = 1.0, speakerId = 2 } = body;
 
-    if (!text) return new NextResponse("No text provided", { status: 400 });
-
-    const TTS_URL = "https://api.tts.quest/v3/voicevox/synthesis";
-    const apiKey = process.env.VOICEVOX_API_KEY;
-
-    const url = new URL(TTS_URL);
+    const url = new URL("https://api.tts.quest/v3/voicevox/synthesis");
     url.searchParams.set("text", text);
     url.searchParams.set("speaker", String(speakerId));
     url.searchParams.set("speed", String(speed));
-    if (apiKey) url.searchParams.set("key", apiKey);
+    if (process.env.VOICEVOX_API_KEY) url.searchParams.set("key", process.env.VOICEVOX_API_KEY);
 
     const response = await fetch(url.toString());
-    if (!response.ok) throw new Error("Failed to fetch from tts.quest");
-
     const data = await response.json();
 
     return NextResponse.json({
@@ -26,14 +19,9 @@ export async function POST(req: NextRequest) {
       success: true
     }, {
       status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json',
-      }
+      headers: { 'Access-Control-Allow-Origin': '*' }
     });
-
   } catch (error: any) {
-    console.error("Voice API Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

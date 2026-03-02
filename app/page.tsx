@@ -1,19 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, Settings } from 'lucide-react';
-// kさんのプロジェクト構成に合わせたインポート
-import { useChat } from '@/hooks/useChat';
-import { useVoice } from '@/hooks/useVoice';
-import { CharacterAvatar } from '@/components/CharacterAvatar';
-import { ListeningVisualizer } from '@/components/ListeningVisualizer';
-import { MessageBubble } from '@/components/MessageBubble';
+import { Send, Mic, MicOff } from 'lucide-react';
+import { createVoicePlayer } from '@/utils/voicevoxClient';
 
 export default function Home() {
   const [message, setMessage] = useState('');
-  const { messages, sendMessage, isTyping } = useChat();
-  const { isListening, toggleListening, speak } = useVoice();
+  const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const voicePlayerRef = useRef<any>(null);
+
+  useEffect(() => {
+    voicePlayerRef.current = createVoicePlayer();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -21,86 +21,67 @@ export default function Home() {
     }
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || isTyping) return;
 
-    const userMessage = message;
+    const userText = message;
     setMessage('');
-    
-    const response = await sendMessage(userMessage);
-    if (response) {
-      speak(response);
+    setMessages(prev => [...prev, { role: 'user', content: userText }]);
+    setIsTyping(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: userText,
+          systemPrompt: "あなたは「はなちゃん」という名前の5歳の女の子です。明るく元気に話してください。"
+        })
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+
+      if (voicePlayerRef.current) {
+        await voicePlayerRef.current.speak(data.reply, { speed: 1.1, speakerId: 2 });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsTyping(false);
     }
   };
 
   return (
-    <main className="flex h-screen flex-col bg-slate-50">
-      <header className="flex items-center justify-between border-b bg-white px-6 py-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
-            <CharacterAvatar />
-          </div>
-          <div>
-            <h1 className="font-bold text-slate-800">はなちゃんとのお話</h1>
-            <p className="text-xs text-slate-500">Online</p>
-          </div>
-        </div>
-        <button className="rounded-full p-2 text-slate-400 hover:bg-slate-100">
-          <Settings size={20} />
-        </button>
+    <div className="flex flex-col h-screen bg-pink-50 text-slate-900">
+      <header className="p-4 bg-white border-b shadow-sm">
+        <h1 className="font-bold text-pink-600 text-center">はなちゃんとのお話</h1>
       </header>
-
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
-        {messages.map((msg: any, index: number) => (
-          <MessageBubble key={index} message={msg} />
-        ))}
-        {isTyping && (
-          <div className="flex gap-2 text-slate-400 text-sm animate-pulse">
-            はなちゃんが考えてるよ...
+      
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`p-3 rounded-2xl max-w-[80%] ${m.role === 'user' ? 'bg-pink-500 text-white' : 'bg-white shadow border border-pink-100'}`}>
+              {m.content}
+            </div>
           </div>
-        )}
+        ))}
+        {isTyping && <div className="text-xs text-pink-400 animate-pulse">はなちゃんが考えてるよ...</div>}
       </div>
 
-      <footer className="border-t bg-white p-6">
-        <div className="mx-auto max-w-4xl relative">
-          {isListening && (
-            <div className="absolute -top-16 left-0 right-0 flex justify-center">
-              <ListeningVisualizer />
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="flex gap-4">
-            <button
-              type="button"
-              onClick={toggleListening}
-              className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                isListening ? 'bg-red-500 text-white animate-bounce' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {isListening ? <MicOff size={24} /> : <Mic size={24} />}
-            </button>
-            
-            <input
-              id="chat-input"
-              name="chat-input"
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="はなちゃんにお話ししてね..."
-              className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-6 py-3 focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-            />
-            
-            <button
-              type="submit"
-              disabled={!message.trim()}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-500 text-white shadow-lg shadow-pink-200 hover:bg-pink-600 disabled:bg-slate-300 disabled:shadow-none transition-all"
-            >
-              <Send size={20} />
-            </button>
-          </form>
-        </div>
-      </footer>
-    </main>
+      <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2">
+        <input
+          id="chat-input"
+          name="chat-input"
+          className="flex-1 border border-pink-200 rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-pink-300"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="おはなししてね！"
+        />
+        <button type="submit" className="bg-pink-500 text-white p-2 rounded-full shadow-md hover:bg-pink-600">
+          <Send size={20} />
+        </button>
+      </form>
+    </div>
   );
 }
