@@ -1,49 +1,45 @@
 export async function POST(req: Request) {
   try {
     const { message, systemPrompt } = await req.json();
-    
-    // APIキーの前後にあるかもしれない空白を自動で削除します（熟考ポイント1）
-    const rawKey = process.env.GEMINI_API_KEY || "";
-    const apiKey = rawKey.trim();
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
 
     if (!apiKey) {
-      return new Response(JSON.stringify({ reply: "サーバー側でAPIキーが読み込めていません。Vercelの設定を確認してください。" }), { status: 500 });
+      return new Response(JSON.stringify({ reply: "【原因1】VercelにAPIキーが設定されていないか、読み込めていません。" }), { status: 200 });
     }
 
-    // モデル名を '-latest' 付きに。URLは最も安定している v1beta を使用（熟考ポイント2）
-    const model = "gemini-1.5-flash-latest";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    // 2026年現在、最も汎用的なモデル名とエンドポイントです
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `指示：${systemPrompt}\n\nユーザーメッセージ：${message}` }]
-        }]
+        contents: [{ parts: [{ text: `${systemPrompt}\n\nユーザー: ${message}` }] }]
       })
     });
 
     const data = await response.json();
 
+    // Google側でエラーが発生した場合、その内容をそのまま返します
     if (data.error) {
-      // エラーの詳細をそのまま画面に出すようにして、隠蔽を避けました
       return new Response(JSON.stringify({ 
-        reply: `Googleからの応答: ${data.error.message} (Code: ${data.error.code})` 
-      }), { status: 500 });
+        reply: `【原因2】Googleがエラーを返しました：${data.error.message} (コード: ${data.error.code})` 
+      }), { status: 200 });
     }
 
     if (!data.candidates || !data.candidates[0].content) {
-      return new Response(JSON.stringify({ reply: "お返事の作成に失敗しました。もう一度送ってみてね。" }), { status: 500 });
+      return new Response(JSON.stringify({ 
+        reply: "【原因3】Googleから有効な回答が返ってきませんでした。内容が制限に抵触した可能性があります。" 
+      }), { status: 200 });
     }
 
     const replyText = data.candidates[0].content.parts[0].text;
+    return new Response(JSON.stringify({ reply: replyText }), { status: 200 });
 
-    return new Response(JSON.stringify({ reply: replyText }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ reply: "通信中にエラーが発生しました。" }), { status: 500 });
+  } catch (error: any) {
+    // 通信自体が失敗した場合
+    return new Response(JSON.stringify({ 
+      reply: `【原因4】通信エラーが発生しました：${error.message}` 
+    }), { status: 200 });
   }
 }
