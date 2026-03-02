@@ -1,4 +1,4 @@
-// app/api/voice/route.ts
+import { NextResponse, NextRequest } from "next/server"; // ← NextRequest を追加しました
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,30 +7,29 @@ export async function POST(req: NextRequest) {
     const speed = body.speed ?? 1.0;
     const speakerId = body.speakerId ?? 2;
 
+    const TTSQUEST_SYNTHESIS_URL = process.env.TTSQUEST_SYNTHESIS_URL || "https://api.tts.quest/v3/voicevox/synthesis";
+    const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY;
+
     if (!text.trim()) return new NextResponse("no text", { status: 400 });
 
-    // 1. サーバー側で URL を組み立てる
     const url = new URL(TTSQUEST_SYNTHESIS_URL);
     url.searchParams.set("text", text);
     url.searchParams.set("speaker", String(speakerId));
     url.searchParams.set("speed", String(speed));
     if (VOICEVOX_API_KEY) url.searchParams.set("key", VOICEVOX_API_KEY);
 
-    // 2. サーバー(Vercel)側から tts.quest を叩く (ブラウザを介さないので CORB を回避)
     const res = await fetch(url.toString());
-
     if (!res.ok) return new NextResponse("tts.quest synthesis failed", { status: 500 });
 
     const data = await res.json();
 
-    // 3. ここが重要：クライアントに返すデータを整理
     return NextResponse.json({
         mp3StreamingUrl: data.mp3StreamingUrl,
         success: true
     }, {
         status: 200,
         headers: {
-            'Access-Control-Allow-Origin': '*', // CORS許可を追加
+            'Access-Control-Allow-Origin': '*',
         }
     });
   } catch (error) {
