@@ -54,17 +54,23 @@ export default function OhanashiApp() {
   };
 
   const startListening = () => {
-    const W = window;
-    const SpeechRec = W.SpeechRecognition || W.webkitSpeechRecognition;
+    // windowを「何でもあり(any)」として扱うことでエラーを回避
+    const anyWindow = window as any;
+    const SpeechRec = anyWindow.SpeechRecognition || anyWindow.webkitSpeechRecognition;
+    
     if (!SpeechRec) {
       alert("このブラウザは音声認識に対応していません。Chromeなどをお使いください。");
       return;
     }
+    
     const rec = new SpeechRec();
     rec.lang = "ja-JP";
     rec.onstart = () => setIsListening(true);
     rec.onend = () => setIsListening(false);
-    rec.onresult = (e) => handleSendMessage(e.results[0][0].transcript);
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      handleSendMessage(transcript);
+    };
     rec.start();
   };
 
