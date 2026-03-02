@@ -7,9 +7,9 @@ const MaterialIcon = ({ name, size = "24px", color = "inherit" }: { name: string
 );
 
 const CHARACTERS = {
-  hana: { id: "hana", name: "はなちゃん", sub: "5さいの女の子", icon: "child_care", color: "#FF7EB9", speaker: 2, prompt: "5歳の女の子として、ひらがな多めで元気いっぱいに答えて。" },
-  oneesan: { id: "oneesan", name: "おねえさん", sub: "近所の優しい人", icon: "face_3", color: "#66BB6A", speaker: 14, prompt: "優しいお姉さんとして、癒やしのトーンではなして。" },
-  ojisama: { id: "ojisama", name: "おじさま", sub: "知的で紳士的", icon: "person_4", color: "#42A5F5", speaker: 13, prompt: "紳士的なおじさまとして、論理的かつ丁寧に話して。" }
+  hana: { id: "hana", name: "はなちゃん", sub: "5さい", icon: "child_care", color: "#FF7EB9", speaker: 2, prompt: "5歳の女の子として、ひらがな多めで元気いっぱいに答えて。" },
+  oneesan: { id: "oneesan", name: "おねえさん", sub: "優しい", icon: "face_3", color: "#66BB6A", speaker: 14, prompt: "優しいお姉さんとして、癒やしのトーンではなして。" },
+  ojisama: { id: "ojisama", name: "おじさま", sub: "紳士", icon: "person_4", color: "#42A5F5", speaker: 13, prompt: "紳士的なおじさまとして、論理的かつ丁寧に話して。" }
 };
 
 export default function OhanashiApp() {
@@ -32,7 +32,6 @@ export default function OhanashiApp() {
     setIsTyping(true);
 
     try {
-      // 動いていた時と同じ通信形式
       const res = await fetch("/api/chat", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" },
@@ -49,7 +48,7 @@ export default function OhanashiApp() {
       }
     } catch (e) {
       setIsTyping(false);
-      setMessages(prev => [...prev, { role: "ai", text: "ごめんね、もう一度お話ししてくれる？" }]);
+      setMessages(prev => [...prev, { role: "ai", text: "ごめんね、いまお話しできないみたい。もう一度試してみて！" }]);
     }
   };
 
@@ -57,10 +56,7 @@ export default function OhanashiApp() {
     if (typeof window === "undefined") return;
     const W = window as any;
     const SpeechRec = W.SpeechRecognition || W.webkitSpeechRecognition;
-    if (!SpeechRec) {
-      alert("ブラウザが対応していません");
-      return;
-    }
+    if (!SpeechRec) return;
     const rec = new SpeechRec();
     rec.lang = "ja-JP";
     rec.onstart = () => setIsListening(true);
@@ -72,8 +68,7 @@ export default function OhanashiApp() {
   return (
     <div style={{ background: "#F5F7FA", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center" }}>
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
-      
-      <div style={{ width: "100%", maxWidth: "500px", padding: "20px", display: "flex", gap: "10px", position: "sticky", top: 0, background: "#F5F7FAee", zIndex: 10 }}>
+      <div style={{ width: "100%", maxWidth: "500px", padding: "20px", display: "flex", gap: "10px" }}>
         {Object.values(CHARACTERS).map((char) => (
           <button key={char.id} onClick={() => setSelectedChar(char)} style={{ flex: 1, padding: "15px 5px", border: "none", borderRadius: "20px", background: selectedChar.id === char.id ? "white" : "transparent", boxShadow: selectedChar.id === char.id ? "0 4px 15px rgba(0,0,0,0.1)" : "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", borderBottom: selectedChar.id === char.id ? `4px solid ${char.color}` : "none" }}>
             <MaterialIcon name={char.icon} size="42px" color={selectedChar.id === char.id ? char.color : "#BDC3C7"} />
@@ -81,17 +76,13 @@ export default function OhanashiApp() {
           </button>
         ))}
       </div>
-
       <div ref={scrollRef} style={{ flex: 1, width: "100%", maxWidth: "500px", padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "15px" }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.role === "user" ? selectedChar.color : "white", color: m.role === "user" ? "white" : "#333", padding: "15px 20px", borderRadius: "25px", boxShadow: "0 2px 10px rgba(0,0,0,0.03)", fontSize: "16px" }}>
-            {m.text}
-          </div>
+          <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.role === "user" ? selectedChar.color : "white", color: m.role === "user" ? "white" : "#333", padding: "15px 20px", borderRadius: "25px", boxShadow: "0 2px 10px rgba(0,0,0,0.03)" }}>{m.text}</div>
         ))}
         {isTyping && <div style={{ color: "#BDC3C7", paddingLeft: "10px" }}>考え中...</div>}
       </div>
-
-      <div style={{ width: "100%", maxWidth: "500px", padding: "20px", position: "sticky", bottom: 0, background: "rgba(245,247,250,0.9)", backdropFilter: "blur(10px)" }}>
+      <div style={{ width: "100%", maxWidth: "500px", padding: "20px", position: "sticky", bottom: 0, background: "rgba(245,247,250,0.9)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "white", padding: "8px", borderRadius: "40px", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}>
           <input value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage(inputText)} placeholder={`${selectedChar.name}とはなそう`} style={{ flex: 1, border: "none", padding: "0 15px", fontSize: "16px", outline: "none" }} />
           <button onClick={startListening} style={{ width: "64px", height: "64px", borderRadius: "32px", border: "none", background: isListening ? "#FF4757" : selectedChar.color, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
