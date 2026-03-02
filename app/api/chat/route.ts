@@ -2,8 +2,11 @@ export async function POST(req: Request) {
   const { message, systemPrompt } = await req.json();
   const apiKey = process.env.GEMINI_API_KEY?.trim();
 
-  // AI Studioが成功しているなら、このURLとこの形式で必ず通ります
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+  // 1. URLを「v1」にする
+  // 2. モデル名を「gemini-1.5-flash-latest」にする
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -12,12 +15,13 @@ export async function POST(req: Request) {
   });
 
   const data = await res.json();
-
-  // 余計な加工をせず、Googleの返答をそのままフロントエンドに流します
-  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "エラー: " + JSON.stringify(data);
   
-  return new Response(JSON.stringify({ reply }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  });
+  // もしこれでもエラーなら、その「生データ」を全部画面に出します
+  if (data.error) {
+    return new Response(JSON.stringify({ reply: "Googleエラー詳細: " + JSON.stringify(data.error) }), { status: 200 });
+  }
+
+  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "返答がありませんでした。";
+  
+  return new Response(JSON.stringify({ reply }), { status: 200 });
 }
