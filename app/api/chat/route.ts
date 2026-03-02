@@ -1,27 +1,33 @@
 export async function POST(req: Request) {
-  const { message, systemPrompt } = await req.json();
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  try {
+    const { message, systemPrompt } = await req.json();
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
 
-  // 1. URLを「v1」にする
-  // 2. モデル名を「gemini-1.5-flash-latest」にする
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    if (!apiKey) return new Response(JSON.stringify({ reply: "APIキー未設定" }), { status: 200 });
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${systemPrompt}\n\n${message}` }] }]
-    })
-  });
+    // kさんの成功コードに基づき、モデルを gemini-3-flash-preview に変更
+    // URLも最新の Gemini 3 世代が動作するエンドポイントに固定します
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
-  const data = await res.json();
-  
-  // もしこれでもエラーなら、その「生データ」を全部画面に出します
-  if (data.error) {
-    return new Response(JSON.stringify({ reply: "Googleエラー詳細: " + JSON.stringify(data.error) }), { status: 200 });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${systemPrompt}\n\n${message}` }] }],
+        // AI Studioのコードにあった Google Search 機能なども必要に応じてここに追加可能です
+      })
+    });
+
+    const data = await res.json();
+    
+    if (data.error) {
+      return new Response(JSON.stringify({ reply: "Googleエラー: " + data.error.message }), { status: 200 });
+    }
+
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "お返事がありませんでした。";
+    return new Response(JSON.stringify({ reply }), { status: 200 });
+
+  } catch (error: any) {
+    return new Response(JSON.stringify({ reply: "通信エラーが発生しました。" }), { status: 200 });
   }
-
-  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "返答がありませんでした。";
-  
-  return new Response(JSON.stringify({ reply }), { status: 200 });
 }
