@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Mic, MicOff, Square } from 'lucide-react';
 
-// 実在する utils と components を使用（機能を壊さない）
+// 元の動作を維持するためのインポート（絶対に変えない部分）
 import { createVoicePlayer } from '@/utils/voicevoxClient';
 import { CharacterAvatar } from '@/components/CharacterAvatar';
 import { ListeningVisualizer } from '@/components/ListeningVisualizer';
@@ -14,12 +14,13 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
   
-  // キャラクター選択状態 (初期値 2: 子供)
+  // キャラクター選択状態
   const [selectedSpeaker, setSelectedSpeaker] = useState(2);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const voicePlayerRef = useRef<any>(null);
 
+  // 音声・チャットのロジック（変えていない部分）
   useEffect(() => {
     voicePlayerRef.current = createVoicePlayer();
   }, []);
@@ -35,7 +36,7 @@ export default function Home() {
 
     const userMsg = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
-    setMessage(''); // 入力欄をクリア
+    setMessage('');
     setIsTyping(true);
 
     try {
@@ -44,10 +45,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: text,
-          // システムプロンプトでキャラを切り替える（オプション）
-          systemPrompt: selectedSpeaker === 2 ? "5歳の女の子「はなちゃん」として話して" : 
-                        selectedSpeaker === 14 ? "親しみやすい20代の女性の友達として話して" : 
-                        "博識で落ち着いた大人の男性として話して"
+          speakerId: selectedSpeaker
         })
       });
       
@@ -56,7 +54,6 @@ export default function Home() {
       setMessages(prev => [...prev, aiMsg]);
 
       if (voicePlayerRef.current) {
-        // 選択された speakerId で声を出す
         await voicePlayerRef.current.speak(data.reply, { speed: 1.1, speakerId: selectedSpeaker });
       }
     } catch (error) {
@@ -72,42 +69,36 @@ export default function Home() {
     }
   };
 
-  // 型エラー回避のためのエイリアス（既存のコンポーネントを安全に呼び出す）
-  const Avatar: any = CharacterAvatar;
-
   return (
     // 背景：クリーム色
     <main className="flex h-screen flex-col bg-[#FFFDD0] text-slate-800">
       
-      {/* 上部：3人の画像選択エリア */}
+      {/* 上：3人の画像選択エリア */}
       <section className="flex justify-around p-6 bg-white/50 border-b border-orange-100 shadow-sm">
         {[
-          { id: 2, label: "子供", color: "bg-pink-400" },
-          { id: 14, label: "女友達", color: "bg-orange-400" },
-          { id: 1, label: "知識人", color: "bg-blue-500" }
+          { id: 2, label: "子供" },
+          { id: 14, label: "女友達" },
+          { id: 1, label: "知識人" }
         ].map((char) => (
           <button
             key={char.id}
-            type="button"
             onClick={() => setSelectedSpeaker(char.id)}
-            className={`flex flex-col items-center transition-all ${selectedSpeaker === char.id ? 'scale-110' : 'opacity-40 grayscale'}`}
+            className={`flex flex-col items-center transition-all ${selectedSpeaker === char.id ? 'scale-110 opacity-100' : 'opacity-40 grayscale'}`}
           >
-            <div className={`w-20 h-20 rounded-full mb-2 border-4 ${selectedSpeaker === char.id ? 'border-orange-500' : 'border-transparent'} overflow-hidden bg-white`}>
-              {/* 型エラーを回避しつつ、元のコンポーネントを表示 */}
-              <Avatar />
+            <div className={`w-24 h-24 rounded-full mb-2 border-4 ${selectedSpeaker === char.id ? 'border-orange-500 shadow-lg' : 'border-transparent'} overflow-hidden bg-white flex items-center justify-center`}>
+              {/* kさんの元の CharacterAvatar をそのまま配置（Propsエラーを防ぐため引数なし） */}
+              <CharacterAvatar />
             </div>
-            <span className={`font-bold text-sm ${selectedSpeaker === char.id ? 'text-orange-600' : 'text-slate-500'}`}>
-              {char.label}
-            </span>
+            <span className="font-bold text-lg">{char.label}</span>
           </button>
         ))}
       </section>
 
-      {/* 中央：入力・返答履歴欄 */}
+      {/* 中：入力・返答履歴（チャット欄） */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-3xl px-6 py-3 text-lg shadow-md ${
+            <div className={`max-w-[85%] rounded-3xl px-6 py-3 text-xl shadow-md ${
               msg.role === 'user' ? 'bg-orange-500 text-white' : 'bg-white border border-orange-100'
             }`}>
               {msg.content}
@@ -121,30 +112,29 @@ export default function Home() {
         )}
       </div>
 
-      {/* 下部：操作エリア */}
-      <footer className="p-4 bg-white/70 backdrop-blur-md border-t border-orange-100">
-        <div className="max-w-4xl mx-auto space-y-3">
+      {/* 下：操作エリア */}
+      <footer className="p-6 bg-white/80 backdrop-blur-md border-t border-orange-100">
+        <div className="max-w-4xl mx-auto space-y-4">
           
-          {/* 返答の停止ボタン（文字入力欄の上） */}
+          {/* 文字入力欄の上に停止ボタン */}
           <div className="flex justify-center">
             <button
-              type="button"
               onClick={stopSpeaking}
-              className="flex items-center gap-2 bg-red-100 text-red-600 px-8 py-3 rounded-full font-bold hover:bg-red-200 transition-colors shadow-sm active:scale-95"
+              className="flex items-center gap-2 bg-red-500 text-white px-10 py-4 rounded-full font-bold text-lg hover:bg-red-600 transition-all shadow-lg active:scale-95"
             >
-              <Square size={18} fill="currentColor" />
+              <Square size={24} fill="currentColor" />
               お話を止める
             </button>
           </div>
 
-          <div className="flex gap-3 items-end">
-            {/* 文字入力欄 */}
+          <div className="flex gap-4 items-end">
+            {/* 文字入力欄（大きめ） */}
             <div className="flex-1 relative">
-              {isListening && <div className="absolute -top-12 left-0 right-0"><ListeningVisualizer /></div>}
+              {isListening && <div className="absolute -top-16 left-0 right-0 flex justify-center"><ListeningVisualizer /></div>}
               <input
                 id="chat-input"
                 name="chat-input"
-                className="w-full border-2 border-orange-200 rounded-2xl px-6 py-4 text-xl outline-none focus:border-orange-500 bg-white shadow-inner"
+                className="w-full border-2 border-orange-200 rounded-3xl px-8 py-5 text-2xl outline-none focus:border-orange-500 bg-white shadow-inner"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="メッセージを入力..."
@@ -152,25 +142,24 @@ export default function Home() {
               />
             </div>
 
-            {/* 音声（話す）ボタン & 送信ボタン */}
-            <div className="flex flex-col gap-2">
+            {/* 下右：音声ボタン & 送信ボタン */}
+            <div className="flex flex-col gap-3">
               <button
                 type="button"
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
+                className={`w-20 h-20 rounded-3xl flex items-center justify-center shadow-xl transition-all ${
                   isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-orange-100 text-orange-600'
                 }`}
                 onClick={() => setIsListening(!isListening)}
               >
-                {isListening ? <MicOff size={32} /> : <Mic size={32} />}
+                {isListening ? <MicOff size={40} /> : <Mic size={40} />}
               </button>
               
               <button
-                type="button"
                 onClick={() => handleSendMessage(message)}
                 disabled={!message.trim() || isTyping}
-                className="w-16 h-16 bg-orange-500 text-white rounded-2xl flex items-center justify-center shadow-lg disabled:bg-slate-300 transition-transform active:scale-95"
+                className="w-20 h-20 bg-orange-600 text-white rounded-3xl flex items-center justify-center shadow-xl disabled:bg-slate-300 transition-transform active:scale-95"
               >
-                <Send size={28} />
+                <Send size={36} />
               </button>
             </div>
           </div>
