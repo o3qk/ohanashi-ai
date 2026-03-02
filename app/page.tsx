@@ -3,15 +3,15 @@
 
 import React, { useState, useEffect, useRef } from "react";
 
-// Googleアイコン（外部から読み込むことでインストール不要に）
-const MaterialIcon = ({ name, size = "24px" }) => (
-  <span className="material-icons-round" style={{ fontSize: size, display: 'block' }}>{name}</span>
+// Google Material Iconsを外部から読み込み（インストール不要）
+const MaterialIcon = ({ name, size = "24px", color = "inherit" }) => (
+  <span className="material-icons-round" style={{ fontSize: size, color: color, display: 'block' }}>{name}</span>
 );
 
 const CHARACTERS = {
-  hana: { id: "hana", name: "はな", sub: "5歳児", icon: "child_care", color: "#FF7EB9", speaker: 2, prompt: "5歳の女の子として、ひらがな多めで元気いっぱいに答えて。" },
-  oneesan: { id: "oneesan", name: "おねえさん", sub: "癒やし", icon: "face_3", color: "#66BB6A", speaker: 14, prompt: "優しいお姉さんとして、癒やしのトーンで話して。" },
-  ojisama: { id: "ojisama", name: "おじさま", sub: "紳士", icon: "person_4", color: "#42A5F5", speaker: 13, prompt: "紳士的なおじさまとして、論理的かつ丁寧に話して。" }
+  hana: { id: "hana", name: "はなちゃん", sub: "5さいの女の子", icon: "child_care", color: "#FF7EB9", speaker: 2, prompt: "5歳の女の子として、ひらがな多めで元気いっぱいに答えて。語尾は「〜だよ」「〜なの」。" },
+  oneesan: { id: "oneesan", name: "おねえさん", sub: "近所の優しい人", icon: "face_3", color: "#66BB6A", speaker: 14, prompt: "優しいお姉さんとして、癒やしのトーンで丁寧にはなして。" },
+  ojisama: { id: "ojisama", name: "おじさま", sub: "知的で紳士的", icon: "person_4", color: "#42A5F5", speaker: 13, prompt: "紳士的なおじさまとして、論理的かつ丁寧に話して。" }
 };
 
 export default function OhanashiApp() {
@@ -20,14 +20,14 @@ export default function OhanashiApp() {
   const [inputText, setInputText] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef(null);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text) => {
     if (!text?.trim()) return;
     setMessages(prev => [...prev, { role: "user", text }]);
     setInputText("");
@@ -54,87 +54,110 @@ export default function OhanashiApp() {
   };
 
   const startListening = () => {
-    const W = window as any;
+    const W = window;
     const SpeechRec = W.SpeechRecognition || W.webkitSpeechRecognition;
     if (!SpeechRec) {
-      alert("このブラウザは音声認識に対応していません。");
+      alert("このブラウザは音声認識に対応していません。Chromeなどをお使いください。");
       return;
     }
     const rec = new SpeechRec();
     rec.lang = "ja-JP";
     rec.onstart = () => setIsListening(true);
     rec.onend = () => setIsListening(false);
-    rec.onresult = (e: any) => handleSendMessage(e.results[0][0].transcript);
+    rec.onresult = (e) => handleSendMessage(e.results[0][0].transcript);
     rec.start();
   };
 
   return (
-    <div style={{ background: `linear-gradient(135deg, ${selectedChar.color}15 0%, #F8F9FA 100%)`, minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", padding: "16px" }}>
+    <div style={{ background: `linear-gradient(135deg, ${selectedChar.color}10 0%, #F5F7FA 100%)`, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", paddingBottom: "120px" }}>
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        .msg-in { animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
-        .typing-dot { width: 6px; height: 6px; background: #BDC3C7; border-radius: 50%; display: inline-block; margin: 0 2px; animation: pulse 1s infinite; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(15px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes pulseMic { 0% { box-shadow: 0 0 0 0 ${selectedChar.color}66; } 70% { box-shadow: 0 0 0 15px ${selectedChar.color}00; } 100% { box-shadow: 0 0 0 0 ${selectedChar.color}00; } }
+        @keyframes typing { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-5px); opacity: 1; } }
+        .msg-in { animation: msgIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+        .char-btn { transition: all 0.3s ease; }
+        .char-btn:hover { transform: translateY(-3px); }
+        .typing-dot { width: 8px; height: 8px; background: #BDC3C7; border-radius: 50%; display: inline-block; margin: 0 3px; animation: typing 1s infinite; }
       `}</style>
       
-      <div style={{ width: "100%", maxWidth: "500px", height: "92vh", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderRadius: "32px", display: "flex", flexDirection: "column", boxShadow: "0 20px 50px rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.4)" }}>
-        
-        {/* Header: キャラクター選択 */}
-        <div style={{ display: "flex", justifyContent: "center", gap: "20px", padding: "20px", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-          {Object.values(CHARACTERS).map((char) => (
-            <button key={char.id} onClick={() => setSelectedChar(char)} style={{ border: "none", background: "none", cursor: "pointer", opacity: selectedChar.id === char.id ? 1 : 0.3, transition: "0.3s", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: "50px", height: "50px", borderRadius: "16px", background: char.color, display: "flex", alignItems: "center", justifyContent: "center", color: "white", marginBottom: "4px", boxShadow: selectedChar.id === char.id ? `0 8px 16px ${char.color}44` : "none" }}>
-                <MaterialIcon name={char.icon} />
-              </div>
-              <span style={{ fontSize: "11px", fontWeight: "bold", color: "#444" }}>{char.name}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Main: チャット履歴 */}
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          {messages.map((m, i) => (
-            <div key={i} className="msg-in" style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
-              <div style={{
-                background: m.role === "user" ? selectedChar.color : "#FFFFFF",
-                color: m.role === "user" ? "white" : "#2C3E50",
-                padding: "14px 20px", borderRadius: "20px", fontSize: "16px", fontWeight: "500",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
-                borderBottomRightRadius: m.role === "user" ? "4px" : "20px",
-                borderBottomLeftRadius: m.role === "ai" ? "4px" : "20px"
-              }}>
-                {m.text}
-              </div>
+      {/* キャラクター選択セクション (上部に固定、少し大きく) */}
+      <div style={{ width: "100%", maxWidth: "600px", padding: "30px 20px", display: "flex", justifyContent: "space-around", gap: "15px", position: "sticky", top: 0, zIndex: 10, background: "rgba(245, 247, 250, 0.8)", backdropFilter: "blur(10px)" }}>
+        {Object.values(CHARACTERS).map((char) => (
+          <button key={char.id} onClick={() => setSelectedChar(char)} className="char-btn" style={{ border: "none", background: selectedChar.id === char.id ? "white" : "rgba(255,255,255,0.5)", cursor: "pointer", flex: 1, padding: "20px", borderRadius: "24px", display: "flex", flexDirection: "column", alignItems: "center", boxShadow: selectedChar.id === char.id ? "0 10px 25px rgba(0,0,0,0.05)" : "0 4px 10px rgba(0,0,0,0.02)", outline: selectedChar.id === char.id ? `2px solid ${char.color}` : "none" }}>
+            {/* アイコンサイズを大きく (32px -> 48px) */}
+            <div style={{ width: "70px", height: "70px", borderRadius: "20px", background: `${char.color}15`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px" }}>
+              <MaterialIcon name={char.icon} size="48px" color={char.color} />
             </div>
-          ))}
-          {isTyping && (
-            <div style={{ alignSelf: "flex-start", background: "#FFF", padding: "12px 18px", borderRadius: "20px" }}>
-              <div className="typing-dot" /><div className="typing-dot" /><div className="typing-dot" />
-            </div>
-          )}
-        </div>
+            <span style={{ fontSize: "14px", fontWeight: "bold", color: "#333", marginBottom: "2px" }}>{char.name}</span>
+            <span style={{ fontSize: "11px", color: "#777" }}>{char.sub}</span>
+          </button>
+        ))}
+      </div>
 
-        {/* Footer: 入力欄 */}
-        <div style={{ padding: "20px", background: "white", borderTop: "1px solid #F0F0F0", borderRadius: "0 0 32px 32px" }}>
-          <div style={{ display: "flex", background: "#F1F3F5", borderRadius: "24px", padding: "6px", alignItems: "center" }}>
-            <button onClick={startListening} style={{ border: "none", background: isListening ? "#FF4757" : "transparent", width: "44px", height: "44px", borderRadius: "22px", cursor: "pointer", color: isListening ? "white" : "#7F8C8D", transition: "0.2s" }}>
-              <MaterialIcon name={isListening ? "mic_off" : "mic"} />
-            </button>
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendMessage(inputText)}
-              placeholder={`${selectedChar.name}とはなそう...`}
-              style={{ flex: 1, border: "none", background: "transparent", padding: "0 12px", fontSize: "16px", outline: "none", color: "#2C3E50" }}
-            />
-            <button onClick={() => handleSendMessage(inputText)} style={{ border: "none", background: selectedChar.color, color: "white", width: "44px", height: "44px", borderRadius: "22px", cursor: "pointer", boxShadow: `0 4px 10px ${selectedChar.color}44` }}>
-              <MaterialIcon name="arrow_upward" />
-            </button>
+      {/* チャットエリア (背景を白に、影を薄くして浮かせる) */}
+      <div ref={scrollRef} style={{ width: "100%", maxWidth: "600px", flex: 1, display: "flex", flexDirection: "column", gap: "20px", padding: "20px" }}>
+        {messages.map((m, i) => (
+          <div key={i} className="msg-in" style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%" }}>
+            <div style={{
+              background: m.role === "user" ? selectedChar.color : "#FFFFFF",
+              color: m.role === "user" ? "white" : "#2C3E50",
+              padding: "16px 22px", borderRadius: "25px", fontSize: "16px", fontWeight: "500", lineHeight: "1.6",
+              boxShadow: "0 5px 15px rgba(0,0,0,0.03)",
+              borderBottomRightRadius: m.role === "user" ? "5px" : "25px",
+              borderBottomLeftRadius: m.role === "ai" ? "5px" : "25px"
+            }}>
+              {m.text}
+            </div>
           </div>
+        ))}
+        {isTyping && (
+          <div style={{ alignSelf: "flex-start", background: "#FFF", padding: "15px 20px", borderRadius: "20px", boxShadow: "0 5px 15px rgba(0,0,0,0.03)" }}>
+            <div className="typing-dot" /><div className="typing-dot" style={{animationDelay: "0.2s"}}/><div className="typing-dot" style={{animationDelay: "0.4s"}}/>
+          </div>
+        )}
+      </div>
+
+      {/* フローティング「話すボタン」セクション (下部に固定) */}
+      <div style={{ position: "fixed", bottom: 0, width: "100%", display: "flex", justifyContent: "center", padding: "20px", zIndex: 100 }}>
+        <div style={{ width: "100%", maxWidth: "600px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(15px)", borderRadius: "30px", padding: "15px", boxShadow: "0 -10px 30px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "10px" }}>
+          
+          {/* テキスト入力欄 (マイクの横に配置) */}
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSendMessage(inputText)}
+            placeholder={`${selectedChar.name}とはなそう...`}
+            style={{ flex: 1, border: "none", background: "#F1F3F5", padding: "15px 20px", borderRadius: "20px", fontSize: "16px", outline: "none", color: "#2C3E50" }}
+          />
+
+          {/* 明確な「話すボタン」 (大きく、アニメーション付き) */}
+          <button 
+            onClick={startListening} 
+            style={{ 
+              border: "none", 
+              background: selectedChar.color, 
+              width: "60px", 
+              height: "60px", 
+              borderRadius: "30px", 
+              cursor: "pointer", 
+              color: "white", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              boxShadow: `0 8px 20px ${selectedChar.color}55`,
+              animation: isListening ? `pulseMic 1.5s infinite` : "none",
+              transition: "transform 0.2s ease"
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
+            onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
+          >
+            <MaterialIcon name={isListening ? "mic_off" : "mic"} size="32px" />
+          </button>
         </div>
       </div>
+
       <audio ref={audioRef} style={{ display: "none" }} />
     </div>
   );
