@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Send, Mic, MicOff, Settings } from 'lucide-react';
+// kさんのプロジェクト構成に合わせたインポート
+import { useChat } from '@/hooks/useChat';
+import { useVoice } from '@/hooks/useVoice';
 import { CharacterAvatar } from '@/components/CharacterAvatar';
 import { ListeningVisualizer } from '@/components/ListeningVisualizer';
 import { MessageBubble } from '@/components/MessageBubble';
-import { useChat } from '@/hooks/useChat';
-import { useVoice } from '@/hooks/useVoice';
-import { Send, Mic, MicOff, Settings } from 'lucide-react';
 
 export default function Home() {
   const [message, setMessage] = useState('');
@@ -14,7 +15,6 @@ export default function Home() {
   const { isListening, toggleListening, speak } = useVoice();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // メッセージが増えたら自動で一番下へスクロール
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -28,10 +28,7 @@ export default function Home() {
     const userMessage = message;
     setMessage('');
     
-    // チャット送信
     const response = await sendMessage(userMessage);
-    
-    // 返答を声で出す
     if (response) {
       speak(response);
     }
@@ -39,7 +36,6 @@ export default function Home() {
 
   return (
     <main className="flex h-screen flex-col bg-slate-50">
-      {/* ヘッダー */}
       <header className="flex items-center justify-between border-b bg-white px-6 py-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
@@ -55,12 +51,8 @@ export default function Home() {
         </button>
       </header>
 
-      {/* チャットエリア */}
-      <div 
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-6 space-y-6"
-      >
-        {messages.map((msg, index) => (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+        {messages.map((msg: any, index: number) => (
           <MessageBubble key={index} message={msg} />
         ))}
         {isTyping && (
@@ -70,7 +62,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* 入力エリア */}
       <footer className="border-t bg-white p-6">
         <div className="mx-auto max-w-4xl relative">
           {isListening && (
@@ -91,8 +82,8 @@ export default function Home() {
             </button>
             
             <input
-              id="chat-input"    // ブラウザ警告対策
-              name="chat-input"  // ブラウザ警告対策
+              id="chat-input"
+              name="chat-input"
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}

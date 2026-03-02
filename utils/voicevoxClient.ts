@@ -1,4 +1,3 @@
-// utils/voicevoxClient.ts 【完全版】
 export type VoiceOptions = {
   speed: number;
   speakerId?: number;
@@ -63,7 +62,6 @@ export function createVoicePlayer(): VoicePlayer {
         if (!data.mp3StreamingUrl) throw new Error("No MP3 URL");
 
         const audio = new Audio();
-        // HTTPSに変換して CORB/CORS の問題を最小化
         audio.src = data.mp3StreamingUrl.replace("http://", "https://");
         audio.preload = "auto";
         currentAudio = audio;
