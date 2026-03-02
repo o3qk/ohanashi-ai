@@ -1,9 +1,8 @@
 "use client";
-// @ts-nocheck
 
 import React, { useState, useEffect, useRef } from "react";
 
-const MaterialIcon = ({ name, size = "24px", color = "inherit" }) => (
+const MaterialIcon = ({ name, size = "24px", color = "inherit" }: { name: string, size?: string, color?: string }) => (
   <span className="material-icons-round" style={{ fontSize: size, color: color, display: 'block' }}>{name}</span>
 );
 
@@ -15,19 +14,18 @@ const CHARACTERS = {
 
 export default function OhanashiApp() {
   const [selectedChar, setSelectedChar] = useState(CHARACTERS.hana);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
   const [inputText, setInputText] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const audioRef = useRef(null);
-  const scrollRef = useRef(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // 通信処理を「動いていた時」のシンプルな形に完全復帰
-  const handleSendMessage = async (text) => {
+  const handleSendMessage = async (text: string) => {
     if (!text?.trim()) return;
     setMessages(prev => [...prev, { role: "user", text }]);
     setInputText("");
@@ -55,17 +53,25 @@ export default function OhanashiApp() {
   };
 
   const startListening = () => {
-    const W = window;
-    const SpeechRec = W.SpeechRecognition || W.webkitSpeechRecognition;
-    if (!SpeechRec) {
-      alert("ブラウザが対応していません");
+    if (typeof window === "undefined") return;
+    
+    // Vercelのビルドエラーを回避するための厳格な定義
+    const RuntimeWindow = window as any;
+    const SpeechRecognition = RuntimeWindow.SpeechRecognition || RuntimeWindow.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("ブラウザが対応していません。Google Chromeをお使いください。");
       return;
     }
-    const rec = new SpeechRec();
+
+    const rec = new SpeechRecognition();
     rec.lang = "ja-JP";
     rec.onstart = () => setIsListening(true);
     rec.onend = () => setIsListening(false);
-    rec.onresult = (e) => handleSendMessage(e.results[0][0].transcript);
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      if (transcript) handleSendMessage(transcript);
+    };
     rec.start();
   };
 
@@ -73,7 +79,6 @@ export default function OhanashiApp() {
     <div style={{ background: "#F5F7FA", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center" }}>
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
       
-      {/* キャラクターを大きく、分かりやすく */}
       <div style={{ width: "100%", maxWidth: "500px", padding: "20px", display: "flex", gap: "10px" }}>
         {Object.values(CHARACTERS).map((char) => (
           <button key={char.id} onClick={() => setSelectedChar(char)} style={{ flex: 1, padding: "15px 5px", border: "none", borderRadius: "20px", background: selectedChar.id === char.id ? "white" : "transparent", boxShadow: selectedChar.id === char.id ? "0 4px 15px rgba(0,0,0,0.1)" : "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", transition: "0.2s" }}>
@@ -83,17 +88,15 @@ export default function OhanashiApp() {
         ))}
       </div>
 
-      {/* チャット履歴 */}
       <div ref={scrollRef} style={{ flex: 1, width: "100%", maxWidth: "500px", padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "15px" }}>
         {messages.map((m, i) => (
           <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.role === "user" ? selectedChar.color : "white", color: m.role === "user" ? "white" : "#333", padding: "12px 18px", borderRadius: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             {m.text}
           </div>
         ))}
-        {isTyping && <div style={{ color: "#BDC3C7", paddingLeft: "10px" }}>考案中...</div>}
+        {isTyping && <div style={{ color: "#BDC3C7", paddingLeft: "10px" }}>考え中...</div>}
       </div>
 
-      {/* 押しやすい大きなマイクボタンを下に固定 */}
       <div style={{ width: "100%", maxWidth: "500px", padding: "20px", position: "sticky", bottom: 0, background: "rgba(245,247,250,0.9)", backdropFilter: "blur(10px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "white", padding: "8px", borderRadius: "40px", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}>
           <input 
@@ -111,7 +114,6 @@ export default function OhanashiApp() {
           </button>
         </div>
       </div>
-
       <audio ref={audioRef} />
     </div>
   );
