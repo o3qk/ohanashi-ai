@@ -7,9 +7,9 @@ const MaterialIcon = ({ name, size = "24px", color = "inherit" }: { name: string
 );
 
 const CHARACTERS = {
-  hana: { id: "hana", name: "はなちゃん", sub: "5さい", icon: "child_care", color: "#FF7EB9", speaker: 2, prompt: "5歳の女の子として、ひらがな多めで元気いっぱいに答えて。" },
-  oneesan: { id: "oneesan", name: "おねえさん", sub: "優しい", icon: "face_3", color: "#66BB6A", speaker: 14, prompt: "優しいお姉さんとして、癒やしのトーンではなして。" },
-  ojisama: { id: "ojisama", name: "おじさま", sub: "紳士", icon: "person_4", color: "#42A5F5", speaker: 13, prompt: "紳士的なおじさまとして、論理的かつ丁寧に話して。" }
+  hana: { id: "hana", name: "はなちゃん", icon: "child_care", color: "#FF7EB9", speaker: 2, prompt: "5歳の女の子として、ひらがな多めで元気いっぱいに答えて。" },
+  oneesan: { id: "oneesan", name: "おねえさん", icon: "face_3", color: "#66BB6A", speaker: 14, prompt: "優しいお姉さんとして、癒やしのトーンではなして。" },
+  ojisama: { id: "ojisama", name: "おじさま", icon: "person_4", color: "#42A5F5", speaker: 13, prompt: "紳士的なおじさまとして、論理的かつ丁寧に話して。" }
 };
 
 export default function OhanashiApp() {
