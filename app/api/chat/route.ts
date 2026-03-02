@@ -3,12 +3,10 @@ export async function POST(req: Request) {
     const { message, systemPrompt } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ reply: "APIキーが設定されていません。" }), { status: 500 });
-    }
+    if (!apiKey) return new Response(JSON.stringify({ reply: "APIキー未設定" }), { status: 500 });
 
-    // エラーの原因だった「v1beta」を、推奨されている「v1」に修正しました
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // モデル名を 1.5 Flash から、より汎用的な gemini-pro に変更
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -21,11 +19,9 @@ export async function POST(req: Request) {
     });
 
     const data = await response.json();
-
+    
     if (data.error) {
-      return new Response(JSON.stringify({ 
-        reply: `Googleエラー: ${data.error.message}` 
-      }), { status: 500 });
+      return new Response(JSON.stringify({ reply: `エラー: ${data.error.message}` }), { status: 500 });
     }
 
     const replyText = data.candidates[0].content.parts[0].text;
@@ -35,6 +31,6 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    return new Response(JSON.stringify({ reply: "エラーが起きました。もう一度試してね。" }), { status: 500 });
+    return new Response(JSON.stringify({ reply: "通信エラーです。" }), { status: 500 });
   }
 }
