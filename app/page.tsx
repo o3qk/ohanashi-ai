@@ -1,13 +1,22 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff } from 'lucide-react';
+import { Send, Mic, MicOff, Square } from 'lucide-react';
+
+// 実在する utils と components を使用（機能を壊さない）
 import { createVoicePlayer } from '@/utils/voicevoxClient';
+import { CharacterAvatar } from '@/components/CharacterAvatar';
+import { ListeningVisualizer } from '@/components/ListeningVisualizer';
 
 export default function Home() {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  
+  // キャラクター選択状態 (2: 子供, 14: 女友達, 1: 知識人 と仮定)
+  const [selectedSpeaker, setSelectedSpeaker] = useState(2);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const voicePlayerRef = useRef<any>(null);
 
@@ -21,13 +30,11 @@ export default function Home() {
     }
   }, [messages]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || isTyping) return;
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isTyping) return;
 
-    const userText = message;
-    setMessage('');
-    setMessages(prev => [...prev, { role: 'user', content: userText }]);
+    const userMsg = { role: 'user', content: text };
+    setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
 
     try {
@@ -35,53 +42,126 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          message: userText,
-          systemPrompt: "あなたは「はなちゃん」という名前の5歳の女の子です。明るく元気に話してください。"
+          message: text,
+          speakerId: selectedSpeaker // 選択されたキャラを反映
         })
       });
+      
       const data = await res.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      const aiMsg = { role: 'assistant', content: data.reply };
+      setMessages(prev => [...prev, aiMsg]);
 
       if (voicePlayerRef.current) {
-        await voicePlayerRef.current.speak(data.reply, { speed: 1.1, speakerId: 2 });
+        await voicePlayerRef.current.speak(data.reply, { speed: 1.1, speakerId: selectedSpeaker });
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsTyping(false);
     }
   };
 
+  const stopSpeaking = () => {
+    if (voicePlayerRef.current) {
+      voicePlayerRef.current.stop();
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-pink-50 text-slate-900">
-      <header className="p-4 bg-white border-b shadow-sm">
-        <h1 className="font-bold text-pink-600 text-center">はなちゃんとのお話</h1>
-      </header>
+    // 背景：クリーム色
+    <main className="flex h-screen flex-col bg-[#FFFDD0] text-slate-800 font-sans">
       
+      {/* 上部：3人の画像選択エリア */}
+      <section className="flex justify-around p-6 bg-white/50 border-b border-orange-100 shadow-sm">
+        {[
+          { id: 2, label: "子供", color: "bg-pink-400" },
+          { id: 14, label: "女友達", color: "bg-orange-400" },
+          { id: 1, label: "知識人", color: "bg-blue-500" }
+        ].map((char) => (
+          <button
+            key={char.id}
+            onClick={() => setSelectedSpeaker(char.id)}
+            className={`flex flex-col items-center transition-all ${selectedSpeaker === char.id ? 'scale-110' : 'opacity-60 grayscale'}`}
+          >
+            <div className={`w-20 h-20 rounded-full mb-2 border-4 ${selectedSpeaker === char.id ? 'border-orange-500' : 'border-transparent'} overflow-hidden`}>
+              {/* キャラクターの口パク・動きのコンポーネント */}
+              <CharacterAvatar speakerId={char.id} isActive={selectedSpeaker === char.id && (isTyping || isListening)} />
+            </div>
+            <span className="font-bold text-sm">{char.label}</span>
+          </button>
+        ))}
+      </section>
+
+      {/* 中央：入力・返答履歴欄 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`p-3 rounded-2xl max-w-[80%] ${m.role === 'user' ? 'bg-pink-500 text-white' : 'bg-white shadow border border-pink-100'}`}>
-              {m.content}
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] rounded-3xl px-6 py-3 text-lg shadow-md ${
+              msg.role === 'user' ? 'bg-orange-500 text-white' : 'bg-white border border-orange-100'
+            }`}>
+              {msg.content}
             </div>
           </div>
         ))}
-        {isTyping && <div className="text-xs text-pink-400 animate-pulse">はなちゃんが考えてるよ...</div>}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-white/80 px-4 py-2 rounded-full text-sm animate-pulse">考え中...</div>
+          </div>
+        )}
       </div>
 
-      <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2">
-        <input
-          id="chat-input"
-          name="chat-input"
-          className="flex-1 border border-pink-200 rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-pink-300"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="おはなししてね！"
-        />
-        <button type="submit" className="bg-pink-500 text-white p-2 rounded-full shadow-md hover:bg-pink-600">
-          <Send size={20} />
-        </button>
-      </form>
-    </div>
+      {/* 下部：操作エリア */}
+      <footer className="p-4 bg-white/70 backdrop-blur-md border-t border-orange-100">
+        <div className="max-w-4xl mx-auto space-y-3">
+          
+          {/* 返答の停止ボタン（大きめ） */}
+          <div className="flex justify-center">
+            <button
+              onClick={stopSpeaking}
+              className="flex items-center gap-2 bg-red-100 text-red-600 px-8 py-3 rounded-full font-bold hover:bg-red-200 transition-colors shadow-sm"
+            >
+              <Square size={20} fill="currentColor" />
+              お話を止める
+            </button>
+          </div>
+
+          <div className="flex gap-3 items-end">
+            {/* 文字入力欄 */}
+            <div className="flex-1 relative">
+              {isListening && <div className="absolute -top-12 left-0 right-0"><ListeningVisualizer /></div>}
+              <input
+                id="chat-input"
+                name="chat-input"
+                className="w-full border-2 border-orange-200 rounded-2xl px-6 py-4 text-xl outline-none focus:border-orange-500 bg-white/90 shadow-inner"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="メッセージを入力してね"
+              />
+            </div>
+
+            {/* 音声（話す）ボタン & 送信ボタン */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
+                  isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-orange-100 text-orange-600'
+                }`}
+                onClick={() => setIsListening(!isListening)}
+              >
+                {isListening ? <MicOff size={32} /> : <Mic size={32} />}
+              </button>
+              
+              <button
+                onClick={() => handleSendMessage(message)}
+                disabled={!message.trim() || isTyping}
+                className="w-16 h-16 bg-orange-500 text-white rounded-2xl flex items-center justify-center shadow-lg disabled:bg-slate-300 transition-transform active:scale-95"
+              >
+                <Send size={28} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </main>
   );
 }
