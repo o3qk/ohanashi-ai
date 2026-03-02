@@ -70,7 +70,7 @@ export default function OhanashiApp() {
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
       <div style={{ width: "100%", maxWidth: "500px", padding: "20px", display: "flex", gap: "10px" }}>
         {Object.values(CHARACTERS).map((char) => (
-          <button key={char.id} onClick={() => setSelectedChar(char)} style={{ flex: 1, padding: "15px 5px", border: "none", borderRadius: "20px", background: selectedChar.id === char.id ? "white" : "transparent", boxShadow: selectedChar.id === char.id ? "0 4px 15px rgba(0,0,0,0.1)" : "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", borderBottom: selectedChar.id === char.id ? `4px solid ${char.color}` : "none" }}>
+          <button key={char.id} onClick={() => setSelectedChar(char)} style={{ flex: 1, padding: "15px 5px", border: "none", borderRadius: "20px", background: selectedChar.id === char.id ? "white" : "transparent", boxShadow: selectedChar.id === char.id ? "0 4px 15px rgba(0,0,0,0.1)" : "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
             <MaterialIcon name={char.icon} size="42px" color={selectedChar.id === char.id ? char.color : "#BDC3C7"} />
             <span style={{ fontSize: "14px", fontWeight: "bold", marginTop: "5px", color: selectedChar.id === char.id ? "#333" : "#BDC3C7" }}>{char.name}</span>
           </button>
